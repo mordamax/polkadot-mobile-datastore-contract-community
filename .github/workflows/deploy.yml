@@ -1,0 +1,50 @@
+name: Deploy
+
+# Puts AccountDataStore on a testnet, or confirms it is there. The address is
+# CREATE3-derived, so a rerun after a chain reset lands it where it was. Run by
+# hand, or by paritytech/autodeployer after a wipe.
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: Network to deploy to
+        type: choice
+        required: true
+        default: preview
+        options: [paseo-next-v2, preview]
+
+concurrency:
+  group: deploy-${{ inputs.network }}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: deploy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # EVM (solc) build: the CREATE3 factory rejects PolkaVM init code.
+      - run: npm run build
+      - run: npm run deploy:create3
+        env:
+          NETWORK: ${{ inputs.network }}
+          DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
+      - name: Summarize the deployment
+        run: |
+          {
+            echo '### AccountDataStore on `${{ inputs.network }}`'
+            echo '```json'
+            cat "deployments/${{ inputs.network }}.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deployment-${{ inputs.network }}
+          path: deployments/${{ inputs.network }}.json

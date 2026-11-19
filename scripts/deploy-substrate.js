@@ -20,24 +20,8 @@
 //   MARGIN_PERCENT     headroom added to the dry-run weight and deposit, default 20
 //   PGAS_ASSET_ID      default 2000000000
 require("dotenv").config({ quiet: true });
-const { cryptoWaitReady, mnemonicValidate } = require("@polkadot/util-crypto");
+const { deployerSuri } = require("./lib/deployer-key");
 const { deployAccountDataStore, runCli } = require("./lib/revive-deploy");
-
-async function deployerSuri() {
-  const mnemonic = (process.env.DEPLOYER_MNEMONIC || "").trim().split(/\s+/).filter(Boolean).join(" ");
-
-  if (mnemonic) {
-    await cryptoWaitReady();
-    // A mistyped word still derives a key, just someone else's; refuse instead of deploying from it.
-    if (!mnemonicValidate(mnemonic)) throw new Error("DEPLOYER_MNEMONIC is not a valid BIP-39 passphrase");
-
-    return mnemonic + (process.env.DEPLOYER_DERIVATION || "");
-  }
-
-  if (process.env.DEPLOYER_SURI) return process.env.DEPLOYER_SURI;
-
-  throw new Error("Set DEPLOYER_MNEMONIC in .env (or DEPLOYER_SURI in the environment)");
-}
 
 runCli(async () => {
   const suri = await deployerSuri();
