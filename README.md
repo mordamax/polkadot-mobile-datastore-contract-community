@@ -25,7 +25,7 @@ What it doesn't do:
 - No encryption, key management or validation of blob contents; that is the client's job.
 - No deletion or editing of records, no owner, admin, pause or upgrade path.
 - No events, pagination or per-account entry cap.
-- No deployed instance is published or maintained by this repo.
+- No mainnet instance. The repo's CI keeps one testnet instance on Paseo Asset Hub Next and Previewnet; see [Testnet deployment (CI)](#testnet-deployment-ci-scriptsdeploy-create3js).
 
 ## Prerequisites and quickstart
 
@@ -171,10 +171,27 @@ Run `measure-deposits.js` on a fresh node: the deploy deposit includes the code 
 
 ### Deployments and releases
 
-- This repo does not publish or maintain deployed instances. Anyone who deploys the contract is responsible for their own deployment.
+- The only instances this repo maintains are the testnet ones described in [Testnet deployment (CI)](#testnet-deployment-ci-scriptsdeploy-create3js). Anyone who deploys the contract elsewhere is responsible for their own deployment.
 - The deploy scripts write `deployments/<network>.json` locally. The directory is git-ignored.
 - Tagged releases, if any, are on the GitHub Releases page.
 - To verify a build, compare the keccak256 of the PolkaVM bytecode: the value in [Toolchain and versions](#toolchain-and-versions), the `bytecodeKeccak256` field the Substrate deploy scripts record, and the code on chain, e.g. `cast keccak $(cast code <address> --rpc-url <eth-rpc>)`.
+
+### Testnet deployment (CI), `scripts/deploy-create3.js`
+
+The `Deploy` workflow (`.github/workflows/deploy.yml`) deploys the contract to `paseo-next-v2` (Paseo Asset Hub Next) or `preview` (Previewnet). It works the same way as `paritytech/attestation-protocol`:
+- It deploys through the shared Solady CREATE3 factory at `0x8533c79E058c5a6489CAFeCA86dc600E029D75f5`, the factory the dotNS contracts use.
+- The salt is `keccak256("account-data-store.create3.v1:AccountDataStore:1.0.0")`. The address depends only on the factory and this salt, so it is the same on both networks and after every chain wipe: **`0x9337eADe019B9A2840b05358b0E188C42D8b3CB3`**.
+- A rerun finds the contract already at that address and adopts it, so the workflow is safe to repeat.
+- To move to a fresh address, bump `CONTRACT_VERSION` in the script.
+- It deploys the **EVM (solc) build**, which runs on revive's REVM backend; the test suite passes there (`npm run test:revm`). The factory rejects PolkaVM init code with `DeploymentFailed()`.
+- `paritytech/autodeployer` dispatches the workflow after a testnet wipe, once it has topped up the deployer account.
+- The workflow runs in the `deploy` GitHub environment and signs with its `DEPLOYER_MNEMONIC` secret. Any funded sr25519 account works, because the address does not depend on the deployer.
+
+```sh
+npm ci && npm run build                                  # EVM artifact
+DRY_RUN=1 NETWORK=preview npm run deploy:create3         # predicted address, weight and deposit; submits nothing
+NETWORK=paseo-next-v2 npm run deploy:create3             # deploy or adopt; writes deployments/paseo-next-v2.json
+```
 
 ### Path A (recommended): sr25519 key through Substrate, `scripts/deploy-substrate.js`
 

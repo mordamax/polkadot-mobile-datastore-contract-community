@@ -13,7 +13,8 @@
     "e2e:substrate": "hardhat run scripts/substrate-e2e.js --network localNode",
     "abi": "hardhat compile && node scripts/export-abi.js",
     "deploy:substrate": "node scripts/deploy-substrate.js",
-    "deploy:alice": "node scripts/deploy-alice.js"
+    "deploy:alice": "node scripts/deploy-alice.js",
+    "deploy:create3": "node scripts/deploy-create3.js"
   },
   "engines": {
     "node": ">=22"
